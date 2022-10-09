@@ -28,3 +28,7 @@ const (
 	FUNCTION = "FUNCTION"
 	LET      = "LET"
 )
+
+func NewFromByte(tokenType TokenType, ch byte) Token {
+	return Token{Type: tokenType, Literal: string(ch)}
+}
