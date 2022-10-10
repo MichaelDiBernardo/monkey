@@ -6,13 +6,15 @@ import (
 	"github.com/MichaelDiBernardo/monkey/token"
 )
 
+type expectedToken struct {
+	expectedType    token.TokenType
+	expectedLiteral string
+}
+
 func TestNextTokenWithSingleCharTokens(t *testing.T) {
 	input := `=+(){},;`
 
-	tests := []struct {
-		expectedType    token.TokenType
-		expectedLiteral string
-	}{
+	tests := []expectedToken{
 		{token.ASSIGN, "="},
 		{token.PLUS, "+"},
 		{token.LPAREN, "("},
@@ -22,20 +24,7 @@ func TestNextTokenWithSingleCharTokens(t *testing.T) {
 		{token.COMMA, ","},
 		{token.SEMICOLON, ";"},
 	}
-
-	lexer := New(input)
-
-	for i, ttest := range tests {
-		tok := lexer.NextToken()
-
-		if tok.Type != ttest.expectedType {
-			t.Fatalf("tests[%d] - wrong tokentype. expected=%q, got=%q", i, ttest.expectedType, tok.Type)
-		}
-
-		if tok.Literal != ttest.expectedLiteral {
-			t.Fatalf("tests[%d] - wrong literal. expected=%q, got=%q", i, ttest.expectedLiteral, tok.Literal)
-		}
-	}
+	compareExpectedTokens(t, input, tests)
 }
 
 func TestNextTokenWithExampleProgram(t *testing.T) {
@@ -48,10 +37,7 @@ let add = fn(x, y) {
 
 let result = add(five, ten);
 `
-	expectedTokens := []struct {
-		expectedType    token.TokenType
-		expectedLiteral string
-	}{
+	expectedTokens := []expectedToken{
 		{token.LET, "let"},
 		{token.IDENTIFIER, "five"},
 		{token.ASSIGN, "="},
@@ -90,8 +76,11 @@ let result = add(five, ten);
 		{token.SEMICOLON, ";"},
 		{token.EOF, ""},
 	}
+	compareExpectedTokens(t, program, expectedTokens)
+}
 
-	lexer := New(program)
+func compareExpectedTokens(t *testing.T, input string, expectedTokens []expectedToken) {
+	lexer := New(input)
 
 	for i, ttest := range expectedTokens {
 		tok := lexer.NextToken()
