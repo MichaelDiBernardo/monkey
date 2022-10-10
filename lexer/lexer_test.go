@@ -12,7 +12,7 @@ type expectedToken struct {
 }
 
 func TestNextTokenWithSingleCharTokens(t *testing.T) {
-	input := `=+(){},;`
+	input := `=+(){},;-!*/<>`
 
 	tests := []expectedToken{
 		{token.ASSIGN, "="},
@@ -23,6 +23,12 @@ func TestNextTokenWithSingleCharTokens(t *testing.T) {
 		{token.RBRACE, "}"},
 		{token.COMMA, ","},
 		{token.SEMICOLON, ";"},
+		{token.MINUS, "-"},
+		{token.BANG, "!"},
+		{token.ASTERISK, "*"},
+		{token.RSLASH, "/"},
+		{token.LANGLE, "<"},
+		{token.RANGLE, ">"},
 	}
 	compareExpectedTokens(t, input, tests)
 }
