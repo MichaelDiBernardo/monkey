@@ -20,6 +20,8 @@ func New(input string) *Lexer {
 func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
 
+	l.eatWhitespace()
+
 	switch l.ch {
 	case '=':
 		tok = token.NewFromByte(token.ASSIGN, l.ch)
@@ -40,6 +42,18 @@ func (l *Lexer) NextToken() token.Token {
 	case NUL:
 		tok.Literal = ""
 		tok.Type = token.EOF
+	default:
+		if isIdentifierChar(l.ch) {
+			tok.Literal = l.readIdentifier()
+			tok.Type = token.LookupMulticharTokenType(tok.Literal)
+			return tok
+		}
+		if isNumericChar(l.ch) {
+			tok.Literal = l.readNumericLiteral()
+			tok.Type = token.INT
+			return tok
+		}
+		tok = token.NewFromByte(token.ILLEGAL, l.ch)
 	}
 
 	l.readChar()
@@ -54,4 +68,38 @@ func (l *Lexer) readChar() {
 	}
 	l.currentPos = l.peekPos
 	l.peekPos += 1
+}
+
+func (l *Lexer) readIdentifier() string {
+	pos := l.currentPos
+	for isIdentifierChar(l.ch) {
+		l.readChar()
+	}
+	return l.input[pos:l.currentPos]
+}
+
+func (l *Lexer) readNumericLiteral() string {
+	pos := l.currentPos
+	for isNumericChar(l.ch) {
+		l.readChar()
+	}
+	return l.input[pos:l.currentPos]
+}
+
+func (l *Lexer) eatWhitespace() {
+	for isWhitespace(l.ch) {
+		l.readChar()
+	}
+}
+
+func isIdentifierChar(ch byte) bool {
+	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_'
+}
+
+func isNumericChar(ch byte) bool {
+	return '0' <= ch && ch <= '9'
+}
+
+func isWhitespace(ch byte) bool {
+	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r'
 }
