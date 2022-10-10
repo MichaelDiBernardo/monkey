@@ -15,6 +15,8 @@ const (
 	INT        = "INT"
 
 	ASSIGN   = "="
+	EQ       = "=="
+	NEQ      = "!="
 	PLUS     = "+"
 	MINUS    = "-"
 	ASTERISK = "*"

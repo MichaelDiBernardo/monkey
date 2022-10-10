@@ -24,7 +24,19 @@ func (l *Lexer) NextToken() token.Token {
 
 	switch l.ch {
 	case '=':
-		tok = token.NewFromByte(token.ASSIGN, l.ch)
+		if l.peek() == '=' {
+			tok = token.Token{Type: token.EQ, Literal: "=="}
+			l.readChar()
+		} else {
+			tok = token.NewFromByte(token.ASSIGN, l.ch)
+		}
+	case '!':
+		if l.peek() == '=' {
+			tok = token.Token{Type: token.NEQ, Literal: "!="}
+			l.readChar()
+		} else {
+			tok = token.NewFromByte(token.BANG, l.ch)
+		}
 	case '+':
 		tok = token.NewFromByte(token.PLUS, l.ch)
 	case '-':
@@ -33,8 +45,6 @@ func (l *Lexer) NextToken() token.Token {
 		tok = token.NewFromByte(token.ASTERISK, l.ch)
 	case '/':
 		tok = token.NewFromByte(token.RSLASH, l.ch)
-	case '!':
-		tok = token.NewFromByte(token.BANG, l.ch)
 	case ',':
 		tok = token.NewFromByte(token.COMMA, l.ch)
 	case ';':
@@ -102,6 +112,13 @@ func (l *Lexer) eatWhitespace() {
 	for isWhitespace(l.ch) {
 		l.readChar()
 	}
+}
+
+func (l *Lexer) peek() byte {
+	if l.peekPos >= len(l.input) {
+		return NUL
+	}
+	return l.input[l.peekPos]
 }
 
 func isIdentifierChar(ch byte) bool {
