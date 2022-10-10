@@ -4,15 +4,16 @@ import "github.com/MichaelDiBernardo/monkey/token"
 
 type Lexer struct {
 	input      string
-	currentPos int  // current position in input
-	peekPos    int  // lookahead position
-	ch         byte // char being inspected
+	currentPos int            // current position in input
+	peekPos    int            // lookahead position
+	ch         byte           // char being inspected
+	currentLoc token.Location // Location of current token
 }
 
 const NUL byte = 0
 
 func New(input string) *Lexer {
-	l := &Lexer{input: input}
+	l := &Lexer{input: input, currentLoc: token.Location{Path: token.NO_FILEPATH, CharN: 0, LineN: 1}}
 	l.readChar()
 	return l
 }
@@ -25,57 +26,55 @@ func (l *Lexer) NextToken() token.Token {
 	switch l.ch {
 	case '=':
 		if l.peek() == '=' {
-			tok = token.Token{Type: token.EQ, Literal: "=="}
+			tok = token.NewTwoCharToken(token.EQ, "==", l.currentLoc)
 			l.readChar()
 		} else {
-			tok = token.NewFromByte(token.ASSIGN, l.ch)
+			tok = token.NewOneCharToken(token.ASSIGN, l.ch, l.currentLoc)
 		}
 	case '!':
 		if l.peek() == '=' {
-			tok = token.Token{Type: token.NEQ, Literal: "!="}
+			tok = token.NewTwoCharToken(token.NEQ, "!=", l.currentLoc)
 			l.readChar()
 		} else {
-			tok = token.NewFromByte(token.BANG, l.ch)
+			tok = token.NewOneCharToken(token.BANG, l.ch, l.currentLoc)
 		}
 	case '+':
-		tok = token.NewFromByte(token.PLUS, l.ch)
+		tok = token.NewOneCharToken(token.PLUS, l.ch, l.currentLoc)
 	case '-':
-		tok = token.NewFromByte(token.MINUS, l.ch)
+		tok = token.NewOneCharToken(token.MINUS, l.ch, l.currentLoc)
 	case '*':
-		tok = token.NewFromByte(token.ASTERISK, l.ch)
+		tok = token.NewOneCharToken(token.ASTERISK, l.ch, l.currentLoc)
 	case '/':
-		tok = token.NewFromByte(token.RSLASH, l.ch)
+		tok = token.NewOneCharToken(token.RSLASH, l.ch, l.currentLoc)
 	case ',':
-		tok = token.NewFromByte(token.COMMA, l.ch)
+		tok = token.NewOneCharToken(token.COMMA, l.ch, l.currentLoc)
 	case ';':
-		tok = token.NewFromByte(token.SEMICOLON, l.ch)
+		tok = token.NewOneCharToken(token.SEMICOLON, l.ch, l.currentLoc)
 	case '(':
-		tok = token.NewFromByte(token.LPAREN, l.ch)
+		tok = token.NewOneCharToken(token.LPAREN, l.ch, l.currentLoc)
 	case ')':
-		tok = token.NewFromByte(token.RPAREN, l.ch)
+		tok = token.NewOneCharToken(token.RPAREN, l.ch, l.currentLoc)
 	case '{':
-		tok = token.NewFromByte(token.LBRACE, l.ch)
+		tok = token.NewOneCharToken(token.LBRACE, l.ch, l.currentLoc)
 	case '}':
-		tok = token.NewFromByte(token.RBRACE, l.ch)
+		tok = token.NewOneCharToken(token.RBRACE, l.ch, l.currentLoc)
 	case '<':
-		tok = token.NewFromByte(token.LANGLE, l.ch)
+		tok = token.NewOneCharToken(token.LANGLE, l.ch, l.currentLoc)
 	case '>':
-		tok = token.NewFromByte(token.RANGLE, l.ch)
+		tok = token.NewOneCharToken(token.RANGLE, l.ch, l.currentLoc)
 	case NUL:
-		tok.Literal = ""
-		tok.Type = token.EOF
+		tok = token.NewOneCharToken(token.EOF, NUL, l.currentLoc)
 	default:
 		if isIdentifierChar(l.ch) {
-			tok.Literal = l.readIdentifier()
-			tok.Type = token.LookupMulticharTokenType(tok.Literal)
+			literal := l.readIdentifier()
+			tok = token.NewMultiCharToken(token.LookupMulticharTokenType(literal), literal, l.currentLoc)
 			return tok
 		}
 		if isNumericChar(l.ch) {
-			tok.Literal = l.readNumericLiteral()
-			tok.Type = token.INT
+			tok = token.NewMultiCharToken(token.INT, l.readNumericLiteral(), l.currentLoc)
 			return tok
 		}
-		tok = token.NewFromByte(token.ILLEGAL, l.ch)
+		tok = token.NewOneCharToken(token.ILLEGAL, l.ch, l.currentLoc)
 	}
 
 	l.readChar()
@@ -90,6 +89,12 @@ func (l *Lexer) readChar() {
 	}
 	l.currentPos = l.peekPos
 	l.peekPos += 1
+
+	if l.ch == '\n' {
+		l.currentLoc.NextLine()
+	} else {
+		l.currentLoc.NextChar()
+	}
 }
 
 func (l *Lexer) readIdentifier() string {

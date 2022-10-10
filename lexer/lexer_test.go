@@ -128,9 +128,54 @@ if (5 < 10) {
 		{token.NEQ, "!="},
 		{token.INT, "9"},
 		{token.SEMICOLON, ";"},
-		{token.EOF, ""},
+		{token.EOF, string(NUL)},
 	}
 	compareExpectedTokens(t, program, expectedTokens)
+}
+
+func TestTokenLocations(t *testing.T) {
+	program := `let one = 1;
+
+
+
+
+let two = 2;
+
+
+two == one;
+two != one;
+`
+
+	lexer := New(program)
+
+	expectedLocations := []token.Location{
+		{Path: token.NO_FILEPATH, LineN: 1, CharN: 1},
+		{Path: token.NO_FILEPATH, LineN: 1, CharN: 5},
+		{Path: token.NO_FILEPATH, LineN: 1, CharN: 9},
+		{Path: token.NO_FILEPATH, LineN: 1, CharN: 11},
+		{Path: token.NO_FILEPATH, LineN: 1, CharN: 12},
+		{Path: token.NO_FILEPATH, LineN: 6, CharN: 1},
+		{Path: token.NO_FILEPATH, LineN: 6, CharN: 5},
+		{Path: token.NO_FILEPATH, LineN: 6, CharN: 9},
+		{Path: token.NO_FILEPATH, LineN: 6, CharN: 11},
+		{Path: token.NO_FILEPATH, LineN: 6, CharN: 12},
+		{Path: token.NO_FILEPATH, LineN: 9, CharN: 1},
+		{Path: token.NO_FILEPATH, LineN: 9, CharN: 5},
+		{Path: token.NO_FILEPATH, LineN: 9, CharN: 8},
+		{Path: token.NO_FILEPATH, LineN: 9, CharN: 11},
+		{Path: token.NO_FILEPATH, LineN: 10, CharN: 1},
+		{Path: token.NO_FILEPATH, LineN: 10, CharN: 5},
+		{Path: token.NO_FILEPATH, LineN: 10, CharN: 8},
+		{Path: token.NO_FILEPATH, LineN: 10, CharN: 11},
+	}
+
+	for i, expected := range expectedLocations {
+		tok := lexer.NextToken()
+		if tok.Location != expected {
+			t.Fatalf("tests[%d] - wrong location. expected=%q, got=%q", i, expected, tok.Location)
+		}
+	}
+
 }
 
 func compareExpectedTokens(t *testing.T, input string, expectedTokens []expectedToken) {

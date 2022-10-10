@@ -1,3 +1,2 @@
-- Add line, char and file indicator to errors
 - Unicode support
 - Add numeric support beyond INT
