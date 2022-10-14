@@ -146,7 +146,7 @@ two == one;
 two != one;
 `
 
-	lexer := New(program)
+	lexer := NewFromString(program)
 
 	expectedLocations := []token.Location{
 		{Path: token.NO_FILEPATH, LineN: 1, CharN: 1},
@@ -179,7 +179,7 @@ two != one;
 }
 
 func compareExpectedTokens(t *testing.T, input string, expectedTokens []expectedToken) {
-	lexer := New(input)
+	lexer := NewFromString(input)
 
 	for i, ttest := range expectedTokens {
 		tok := lexer.NextToken()

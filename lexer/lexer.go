@@ -12,7 +12,7 @@ type Lexer struct {
 
 const NUL byte = 0
 
-func New(input string) *Lexer {
+func NewFromString(input string) *Lexer {
 	l := &Lexer{input: input, currentLoc: token.Location{Path: token.NO_FILEPATH, CharN: 0, LineN: 1}}
 	l.readChar()
 	return l
