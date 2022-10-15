@@ -1,20 +1,34 @@
 package parser
 
 import (
+	"fmt"
+
 	"github.com/MichaelDiBernardo/monkey/ast"
 	"github.com/MichaelDiBernardo/monkey/lexer"
 	"github.com/MichaelDiBernardo/monkey/token"
 )
+
+type ParseError struct {
+	Message  string
+	Location token.Location
+}
+
+func (pe *ParseError) String() string {
+	msg := "%s (at line %d, col %d)"
+	return fmt.Sprintf(msg, pe.Message, pe.Location.LineN, pe.Location.CharN)
+}
 
 type Parser struct {
 	lexer *lexer.Lexer
 
 	curToken  token.Token
 	peekToken token.Token
+
+	errors []ParseError
 }
 
 func New(l *lexer.Lexer) *Parser {
-	p := &Parser{lexer: l}
+	p := &Parser{lexer: l, errors: []ParseError{}}
 	p.nextToken()
 	p.nextToken()
 	return p
@@ -39,6 +53,10 @@ func (p *Parser) ParseProgram() *ast.Program {
 	return program
 }
 
+func (p *Parser) Errors() []ParseError {
+	return p.errors
+}
+
 func (p *Parser) parseStatement() ast.Statement {
 	switch p.curToken.Type {
 	case token.LET:
@@ -56,7 +74,7 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	}
 	ident := p.curToken
 
-	if !p.peekToken.Is(token.ASSIGN) {
+	if !p.advanceIfPeekTokenIs(token.ASSIGN) {
 		return nil
 	}
 
@@ -70,10 +88,25 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	return stmt
 }
 
+// advanceIfPeekTokenIs is a predicate that also does a bunch of work. This is
+// generally frowned upon, but for this specific operation is pretty handy.
+//
+// It:
+// - calls nextToken() and returns true if ttype matches the peekToken's type
+// - adds a parse error and returns false otherwise
 func (p *Parser) advanceIfPeekTokenIs(ttype token.TokenType) bool {
 	if p.peekToken.Is(ttype) {
 		p.nextToken()
 		return true
+	} else {
+		p.addErrorForMismatchedPeekToken(ttype)
+		return false
 	}
-	return false
+}
+
+// addErrorForMismatchedPeekToken adds an appropriate error to the errors
+// collection when the peekToken's type doesn't match the given expectedType.
+func (p *Parser) addErrorForMismatchedPeekToken(expectedType token.TokenType) {
+	msg := fmt.Sprintf("expected next token to be %s, got %s '%s' instead", expectedType, p.peekToken.Type, p.peekToken.Literal)
+	p.errors = append(p.errors, ParseError{Message: msg, Location: p.peekToken.Location})
 }
