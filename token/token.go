@@ -112,3 +112,7 @@ func LookupMulticharTokenType(literal string) TokenType {
 	}
 	return IDENTIFIER
 }
+
+func (t *Token) Is(ttype TokenType) bool {
+	return t.Type == ttype
+}

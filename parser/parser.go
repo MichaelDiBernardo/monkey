@@ -51,19 +51,19 @@ func (p *Parser) parseStatement() ast.Statement {
 func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt := &ast.LetStatement{LetToken: p.curToken}
 
-	if p.peekToken.Type != token.IDENTIFIER {
+	if p.peekToken.Is(token.IDENTIFIER) {
 		return nil
 	}
 	p.nextToken()
 
-	if p.peekToken.Type != token.ASSIGN {
+	if p.peekToken.Is(token.ASSIGN) {
 		return nil
 	}
 
 	stmt.Name = &ast.Identifier{IdentToken: p.curToken, Value: p.curToken.Literal}
 
 	// Skip expression for now.
-	for p.curToken.Type != token.SEMICOLON {
+	for p.curToken.Is(token.SEMICOLON) {
 		p.nextToken()
 	}
 
