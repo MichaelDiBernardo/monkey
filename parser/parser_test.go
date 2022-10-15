@@ -42,6 +42,37 @@ let foobar = 838383;
 	}
 }
 
+func TestReturnStatements(t *testing.T) {
+	input := `
+return 6;
+return 11;
+`
+
+	l := lexer.NewFromString(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	failIfParserHasErrors(t, p)
+
+	if program == nil {
+		t.Fatalf("ParseProgram() returned nil")
+	}
+	if nstmts := len(program.Statements); nstmts != 2 {
+		t.Fatalf("expected: len(program.Statements) = 2, got %d", nstmts)
+	}
+
+	for _, stmt := range program.Statements {
+		returnStmt, ok := stmt.(*ast.ReturnStatement)
+		if !ok {
+			t.Errorf("stmt: expected *ast.ReturnStatement, got %T", stmt)
+			continue
+		}
+		if tok := returnStmt.Token(); !tok.Is(token.RETURN) {
+			t.Errorf("stmt: expected token to be RETURN, got %q", tok.Type)
+		}
+	}
+}
+
 func testLetStatement(t *testing.T, expectedLiteral string, stmt ast.Statement) bool {
 	if stype := stmt.Token().Type; stype != token.LET {
 		t.Errorf("expected let literal for stmt, got %q", stype)
