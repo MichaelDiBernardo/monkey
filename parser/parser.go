@@ -8,23 +8,56 @@ import (
 	"github.com/MichaelDiBernardo/monkey/token"
 )
 
+// ParseError is a message that is emitted by the parser when there is an error.
+// Message should be legible by the program author if emitted by the parser.
 type ParseError struct {
 	Message  string
 	Location token.Location
 }
 
+// String() should be legible by the program author if emitted by the parser.
 func (pe *ParseError) String() string {
 	msg := "%s (at line %d, col %d)"
 	return fmt.Sprintf(msg, pe.Message, pe.Location.LineN, pe.Location.CharN)
 }
 
+type (
+	// prefixParseFn is a Pratt prefix-parse function. It is called when parsing
+	// a prefix operation.
+	prefixParseFn func(*Parser) ast.Expression
+	// infixParseFn is a Pratt infix-parse function. It is called when parsing
+	// an infix operation.
+	infixParseFn func(*Parser, ast.Expression) ast.Expression
+)
+
+// prefixParseFns is a registry of prefix parsing functions.
+var prefixParseFns = map[token.TokenType]prefixParseFn{
+	token.IDENTIFIER: parseIdentifier,
+}
+
+// infixParseFns is a registry of infix parsing functions.
+var infixParseFns = map[token.TokenType]infixParseFn{}
+
+// The precedence an operation takes over another.
+type Precedence int
+
+const (
+	_ Precedence = iota
+	P_LOWEST
+	P_EQUALS
+	P_LESSGREATER
+	P_SUM
+	P_PRODUCT
+	P_PREFIX
+	P_CALL
+)
+
 type Parser struct {
-	lexer *lexer.Lexer
+	lexer  *lexer.Lexer
+	errors []ParseError
 
 	curToken  token.Token
 	peekToken token.Token
-
-	errors []ParseError
 }
 
 func New(l *lexer.Lexer) *Parser {
@@ -45,9 +78,7 @@ func (p *Parser) ParseProgram() *ast.Program {
 
 	for p.curToken.Type != token.EOF {
 		stmt := p.parseStatement()
-		if stmt != nil {
-			program.Statements = append(program.Statements, stmt)
-		}
+		program.Statements = append(program.Statements, stmt)
 		p.nextToken()
 	}
 	return program
@@ -64,7 +95,7 @@ func (p *Parser) parseStatement() ast.Statement {
 	case token.RETURN:
 		return p.parseReturnStatement()
 	default:
-		return nil
+		return p.parseExpressionStatement()
 	}
 }
 
@@ -83,7 +114,7 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt.Name = &ast.Identifier{IdentToken: ident, Value: ident.Literal}
 
 	// Skip expression for now.
-	for p.curToken.Is(token.SEMICOLON) {
+	for !p.curToken.Is(token.SEMICOLON) {
 		p.nextToken()
 	}
 
@@ -94,11 +125,36 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	stmt := &ast.ReturnStatement{ReturnToken: p.curToken}
 
 	// Skip expression for now.
-	for p.curToken.Is(token.SEMICOLON) {
+	for !p.curToken.Is(token.SEMICOLON) {
 		p.nextToken()
 	}
 
 	return stmt
+}
+
+func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
+	stmt := &ast.ExpressionStatement{
+		FirstToken: p.curToken,
+		Value:      p.parseExpression(P_LOWEST),
+	}
+
+	// Semicolons are optional in expression statements.
+	if p.peekToken.Type == token.SEMICOLON {
+		p.nextToken()
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseExpression(precedence Precedence) ast.Expression {
+	pfn := prefixParseFns[p.curToken.Type]
+
+	if pfn == nil {
+		return nil
+	}
+	lhs := pfn(p)
+
+	return lhs
 }
 
 // advanceIfPeekTokenIs is a predicate that also does a bunch of work. This is
@@ -122,4 +178,8 @@ func (p *Parser) advanceIfPeekTokenIs(ttype token.TokenType) bool {
 func (p *Parser) addErrorForMismatchedPeekToken(expectedType token.TokenType) {
 	msg := fmt.Sprintf("expected next token to be %s, got %s '%s' instead", expectedType, p.peekToken.Type, p.peekToken.Literal)
 	p.errors = append(p.errors, ParseError{Message: msg, Location: p.peekToken.Location})
+}
+
+func parseIdentifier(p *Parser) ast.Expression {
+	return &ast.Identifier{IdentToken: p.curToken, Value: p.curToken.Literal}
 }

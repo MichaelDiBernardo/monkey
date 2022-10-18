@@ -73,6 +73,40 @@ return 11;
 	}
 }
 
+func TestIdentifierExpression(t *testing.T) {
+	input := "foobar;"
+
+	l := lexer.NewFromString(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	failIfParserHasErrors(t, p)
+
+	if nstmts := len(program.Statements); nstmts != 1 {
+		t.Fatalf("expected 1 statement, got %d", nstmts)
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+
+	if !ok {
+		t.Fatalf("stmt was bad type %T", program.Statements[0])
+	}
+
+	ident, ok := stmt.Value.(*ast.Identifier)
+
+	if !ok {
+		t.Fatalf("ident was bad type %T", stmt.Value)
+	}
+
+	if v := ident.Value; v != "foobar" {
+		t.Errorf("ident.Value: expected foobar, got %s", v)
+	}
+
+	if v := ident.Token().Literal; v != "foobar" {
+		t.Errorf("ident.Token().Literal: expected foobar, got %s", v)
+	}
+}
+
 func testLetStatement(t *testing.T, expectedLiteral string, stmt ast.Statement) bool {
 	if stype := stmt.Token().Type; stype != token.LET {
 		t.Errorf("expected let literal for stmt, got %q", stype)

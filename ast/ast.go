@@ -108,7 +108,7 @@ type ExpressionStatement struct {
 	Value      Expression
 }
 
-func (es *ExpressionStatement) expressionNode()    {}
+func (es *ExpressionStatement) statementNode()     {}
 func (es *ExpressionStatement) Token() token.Token { return es.FirstToken }
 
 func (es *ExpressionStatement) String() string {
