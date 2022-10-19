@@ -25,20 +25,11 @@ func (pe *ParseError) String() string {
 type (
 	// prefixParseFn is a Pratt prefix-parse function. It is called when parsing
 	// a prefix operation.
-	prefixParseFn func(*Parser) ast.Expression
+	prefixParseFn func() ast.Expression
 	// infixParseFn is a Pratt infix-parse function. It is called when parsing
 	// an infix operation.
-	infixParseFn func(*Parser, ast.Expression) ast.Expression
+	infixParseFn func(ast.Expression) ast.Expression
 )
-
-// prefixParseFns is a registry of prefix parsing functions.
-var prefixParseFns = map[token.TokenType]prefixParseFn{
-	token.IDENTIFIER: parseIdentifier,
-	token.INT:        parseIntegerLiteral,
-}
-
-// infixParseFns is a registry of infix parsing functions.
-var infixParseFns = map[token.TokenType]infixParseFn{}
 
 // The precedence an operation takes over another.
 type Precedence int
@@ -60,18 +51,25 @@ type Parser struct {
 
 	curToken  token.Token
 	peekToken token.Token
+
+	prefixParseFns map[token.TokenType]prefixParseFn
+	infixParseFns  map[token.TokenType]infixParseFn
 }
 
 func New(l *lexer.Lexer) *Parser {
 	p := &Parser{lexer: l, errors: []ParseError{}}
 	p.nextToken()
 	p.nextToken()
-	return p
-}
 
-func (p *Parser) nextToken() {
-	p.curToken = p.peekToken
-	p.peekToken = p.lexer.NextToken()
+	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
+	p.registerPrefix(token.IDENTIFIER, p.parseIdentifier)
+	p.registerPrefix(token.INT, p.parseIntegerLiteral)
+	p.registerPrefix(token.BANG, p.parsePrefixExpression)
+	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
+
+	p.infixParseFns = make(map[token.TokenType]infixParseFn)
+
+	return p
 }
 
 func (p *Parser) ParseProgram() *ast.Program {
@@ -88,6 +86,19 @@ func (p *Parser) ParseProgram() *ast.Program {
 
 func (p *Parser) Errors() []ParseError {
 	return p.errors
+}
+
+func (p *Parser) registerPrefix(tt token.TokenType, fn prefixParseFn) {
+	p.prefixParseFns[tt] = fn
+}
+
+func (p *Parser) registerInfix(tt token.TokenType, fn infixParseFn) {
+	p.infixParseFns[tt] = fn
+}
+
+func (p *Parser) nextToken() {
+	p.curToken = p.peekToken
+	p.peekToken = p.lexer.NextToken()
 }
 
 func (p *Parser) parseStatement() ast.Statement {
@@ -149,12 +160,13 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 }
 
 func (p *Parser) parseExpression(precedence Precedence) ast.Expression {
-	pfn := prefixParseFns[p.curToken.Type]
+	pfn := p.prefixParseFns[p.curToken.Type]
 
 	if pfn == nil {
+		p.addErrorForMissingPrefixFn(p.curToken.Type)
 		return nil
 	}
-	lhs := pfn(p)
+	lhs := pfn()
 
 	return lhs
 }
@@ -182,11 +194,16 @@ func (p *Parser) addErrorForMismatchedPeekToken(expectedType token.TokenType) {
 	p.errors = append(p.errors, ParseError{Message: msg, Location: p.peekToken.Location})
 }
 
-func parseIdentifier(p *Parser) ast.Expression {
+func (p *Parser) addErrorForMissingPrefixFn(tt token.TokenType) {
+	msg := fmt.Sprintf("no prefix parse fn for tokentype %s", tt)
+	p.errors = append(p.errors, ParseError{Message: msg, Location: p.curToken.Location})
+}
+
+func (p *Parser) parseIdentifier() ast.Expression {
 	return &ast.Identifier{IdentToken: p.curToken, Value: p.curToken.Literal}
 }
 
-func parseIntegerLiteral(p *Parser) ast.Expression {
+func (p *Parser) parseIntegerLiteral() ast.Expression {
 	intval, err := strconv.ParseInt(p.curToken.Literal, 0, 64)
 
 	if err != nil {
@@ -196,4 +213,16 @@ func parseIntegerLiteral(p *Parser) ast.Expression {
 	}
 
 	return &ast.IntegerLiteral{IntToken: p.curToken, Value: intval}
+}
+
+func (p *Parser) parsePrefixExpression() ast.Expression {
+	expression := &ast.PrefixExpression{
+		OperatorToken: p.curToken,
+		Operator:      p.curToken.Literal,
+	}
+
+	p.nextToken()
+
+	expression.RHS = p.parseExpression(P_PREFIX)
+	return expression
 }

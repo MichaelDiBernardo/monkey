@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/MichaelDiBernardo/monkey/ast"
@@ -14,19 +15,7 @@ let x = 5;
 let y = 10;
 let foobar = 838383;
 `
-
-	l := lexer.NewFromString(input)
-	p := New(l)
-
-	program := p.ParseProgram()
-	failIfParserHasErrors(t, p)
-
-	if program == nil {
-		t.Fatalf("ParseProgram() returned nil")
-	}
-	if nstmts := len(program.Statements); nstmts != 3 {
-		t.Fatalf("expected: len(program.Statements) = 3, got %d", nstmts)
-	}
+	program := checkParseProgram(t, input, 3)
 
 	expected := []string{
 		"x",
@@ -47,19 +36,7 @@ func TestReturnStatements(t *testing.T) {
 return 6;
 return 11;
 `
-
-	l := lexer.NewFromString(input)
-	p := New(l)
-
-	program := p.ParseProgram()
-	failIfParserHasErrors(t, p)
-
-	if program == nil {
-		t.Fatalf("ParseProgram() returned nil")
-	}
-	if nstmts := len(program.Statements); nstmts != 2 {
-		t.Fatalf("expected: len(program.Statements) = 2, got %d", nstmts)
-	}
+	program := checkParseProgram(t, input, 2)
 
 	for _, stmt := range program.Statements {
 		returnStmt, ok := stmt.(*ast.ReturnStatement)
@@ -75,16 +52,7 @@ return 11;
 
 func TestIdentifierExpression(t *testing.T) {
 	input := "foobar;"
-
-	l := lexer.NewFromString(input)
-	p := New(l)
-
-	program := p.ParseProgram()
-	failIfParserHasErrors(t, p)
-
-	if nstmts := len(program.Statements); nstmts != 1 {
-		t.Fatalf("expected 1 statement, got %d", nstmts)
-	}
+	program := checkParseProgram(t, input, 1)
 
 	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
 
@@ -109,16 +77,7 @@ func TestIdentifierExpression(t *testing.T) {
 
 func TestIntegerExpression(t *testing.T) {
 	input := "52;"
-
-	l := lexer.NewFromString(input)
-	p := New(l)
-
-	program := p.ParseProgram()
-	failIfParserHasErrors(t, p)
-
-	if nstmts := len(program.Statements); nstmts != 1 {
-		t.Fatalf("expected 1 statement, got %d", nstmts)
-	}
+	program := checkParseProgram(t, input, 1)
 
 	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
 
@@ -126,18 +85,70 @@ func TestIntegerExpression(t *testing.T) {
 		t.Fatalf("stmt was bad type %T", program.Statements[0])
 	}
 
-	intl, ok := stmt.Value.(*ast.IntegerLiteral)
+	testIntegerLiteral(t, stmt.Value, 52)
+}
+
+func TestPrefixExpressions(t *testing.T) {
+	prefixTests := []struct {
+		input    string
+		operator string
+		value    int64
+	}{
+		{"!43", "!", 43},
+		{"-92", "-", 92},
+	}
+
+	for i, pt := range prefixTests {
+		program := checkParseProgram(t, pt.input, 1)
+
+		stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+
+		if !ok {
+			t.Fatalf("[%d]: expected ast.ExpressionStatement, got %T", i, program.Statements[0])
+		}
+
+		exp, ok := stmt.Value.(*ast.PrefixExpression)
+
+		if !ok {
+			t.Fatalf("[%d]: expected Value type *ast.PrefixExpression, got %T", i, stmt.Value)
+		}
+
+		if exp.Operator != pt.operator {
+			t.Fatalf("[%d]: expected operator %q, got %q", i, pt.operator, exp.Operator)
+		}
+
+		testIntegerLiteral(t, exp.RHS, pt.value)
+	}
+}
+
+func checkParseProgram(t *testing.T, input string, expectednstmts int) *ast.Program {
+	l := lexer.NewFromString(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	failIfParserHasErrors(t, p)
+	if program == nil {
+		t.Fatalf("ParseProgram() returned nil")
+	}
+	if nstmts := len(program.Statements); nstmts != expectednstmts {
+		t.Fatalf("expected %d statement(s), got %d", expectednstmts, nstmts)
+	}
+	return program
+}
+
+func testIntegerLiteral(t *testing.T, il ast.Expression, expected int64) {
+	intl, ok := il.(*ast.IntegerLiteral)
 
 	if !ok {
-		t.Fatalf("expected *ast.IntegerLiteral, got type %T", stmt.Value)
+		t.Fatalf("expected *ast.IntegerLiteral, got type %T", il)
 	}
 
-	if v := intl.Value; v != 52 {
-		t.Errorf("intl.Value: expected 52, got %d", v)
+	if v := intl.Value; v != expected {
+		t.Errorf("intl.Value: expected %d, got %d", expected, v)
 	}
 
-	if v := intl.Token().Literal; v != "52" {
-		t.Errorf("intl.Token().Literal: expected %q, got %q", "52", v)
+	if exp, act := fmt.Sprintf("%d", expected), intl.Token().Literal; exp != act {
+		t.Errorf("intl.Token().Literal: expected %q, got %q", exp, act)
 	}
 }
 

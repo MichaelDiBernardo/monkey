@@ -145,3 +145,23 @@ func (il *IntegerLiteral) Token() token.Token { return il.IntToken }
 func (il *IntegerLiteral) String() string {
 	return fmt.Sprintf("%d", il.Value)
 }
+
+type PrefixExpression struct {
+	OperatorToken token.Token
+	Operator      string
+	RHS           Expression
+}
+
+func (pe *PrefixExpression) expressionNode()    {}
+func (pe *PrefixExpression) Token() token.Token { return pe.OperatorToken }
+
+func (pe *PrefixExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("(")
+	out.WriteString(pe.Operator)
+	out.WriteString(pe.RHS.String())
+	out.WriteString(")")
+
+	return out.String()
+}
