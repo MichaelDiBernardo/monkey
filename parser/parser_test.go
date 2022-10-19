@@ -107,6 +107,40 @@ func TestIdentifierExpression(t *testing.T) {
 	}
 }
 
+func TestIntegerExpression(t *testing.T) {
+	input := "52;"
+
+	l := lexer.NewFromString(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	failIfParserHasErrors(t, p)
+
+	if nstmts := len(program.Statements); nstmts != 1 {
+		t.Fatalf("expected 1 statement, got %d", nstmts)
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+
+	if !ok {
+		t.Fatalf("stmt was bad type %T", program.Statements[0])
+	}
+
+	intl, ok := stmt.Value.(*ast.IntegerLiteral)
+
+	if !ok {
+		t.Fatalf("expected *ast.IntegerLiteral, got type %T", stmt.Value)
+	}
+
+	if v := intl.Value; v != 52 {
+		t.Errorf("intl.Value: expected 52, got %d", v)
+	}
+
+	if v := intl.Token().Literal; v != "52" {
+		t.Errorf("intl.Token().Literal: expected %q, got %q", "52", v)
+	}
+}
+
 func testLetStatement(t *testing.T, expectedLiteral string, stmt ast.Statement) bool {
 	if stype := stmt.Token().Type; stype != token.LET {
 		t.Errorf("expected let literal for stmt, got %q", stype)

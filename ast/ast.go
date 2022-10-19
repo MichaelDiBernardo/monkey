@@ -2,6 +2,7 @@ package ast
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/MichaelDiBernardo/monkey/token"
 )
@@ -130,4 +131,17 @@ func (i *Identifier) Token() token.Token { return i.IdentToken }
 
 func (i *Identifier) String() string {
 	return i.Value
+}
+
+// IntegerLiteral is an expression composed of an integer literal.
+type IntegerLiteral struct {
+	IntToken token.Token
+	Value    int64
+}
+
+func (il *IntegerLiteral) expressionNode()    {}
+func (il *IntegerLiteral) Token() token.Token { return il.IntToken }
+
+func (il *IntegerLiteral) String() string {
+	return fmt.Sprintf("%d", il.Value)
 }

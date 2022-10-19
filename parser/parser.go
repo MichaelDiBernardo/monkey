@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/MichaelDiBernardo/monkey/ast"
 	"github.com/MichaelDiBernardo/monkey/lexer"
@@ -33,6 +34,7 @@ type (
 // prefixParseFns is a registry of prefix parsing functions.
 var prefixParseFns = map[token.TokenType]prefixParseFn{
 	token.IDENTIFIER: parseIdentifier,
+	token.INT:        parseIntegerLiteral,
 }
 
 // infixParseFns is a registry of infix parsing functions.
@@ -182,4 +184,16 @@ func (p *Parser) addErrorForMismatchedPeekToken(expectedType token.TokenType) {
 
 func parseIdentifier(p *Parser) ast.Expression {
 	return &ast.Identifier{IdentToken: p.curToken, Value: p.curToken.Literal}
+}
+
+func parseIntegerLiteral(p *Parser) ast.Expression {
+	intval, err := strconv.ParseInt(p.curToken.Literal, 0, 64)
+
+	if err != nil {
+		msg := fmt.Sprintf("could not parse %s as integer literal", p.curToken.Literal)
+		p.errors = append(p.errors, ParseError{Message: msg, Location: p.curToken.Location})
+		return nil
+	}
+
+	return &ast.IntegerLiteral{IntToken: p.curToken, Value: intval}
 }
