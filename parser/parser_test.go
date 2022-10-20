@@ -121,6 +121,113 @@ func TestPrefixExpressions(t *testing.T) {
 	}
 }
 
+func TestInfixExpressions(t *testing.T) {
+	infixTests := []struct {
+		input    string
+		LHS      int64
+		operator string
+		RHS      int64
+	}{
+		{"12 + 13;", 12, "+", 13},
+		{"12 - 13;", 12, "-", 13},
+		{"12 * 13;", 12, "*", 13},
+		{"12 / 13;", 12, "/", 13},
+		{"12 > 13;", 12, ">", 13},
+		{"12 < 13;", 12, "<", 13},
+		{"12 == 13;", 12, "==", 13},
+		{"12 != 13;", 12, "!=", 13},
+	}
+
+	for i, it := range infixTests {
+		program := checkParseProgram(t, it.input, 1)
+
+		stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+
+		if !ok {
+			t.Fatalf("[%d]: expected ast.ExpressionStatement, got %T", i, program.Statements[0])
+		}
+
+		exp, ok := stmt.Value.(*ast.InfixExpression)
+
+		if !ok {
+			t.Fatalf("[%d]: expected Value type *ast.InfixExpression, got %T", i, stmt.Value)
+		}
+
+		if exp.Operator != it.operator {
+			t.Fatalf("[%d]: expected operator %q, got %q", i, it.operator, exp.Operator)
+		}
+
+		testIntegerLiteral(t, exp.LHS, it.LHS)
+		testIntegerLiteral(t, exp.RHS, it.RHS)
+	}
+}
+
+func TestOperatorPrecedenceParsing(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{
+			"-a * b",
+			"((-a) * b)",
+		},
+		{
+			"!-a",
+			"(!(-a))",
+		},
+		{
+			"a + b + c",
+			"((a + b) + c)",
+		},
+		{
+			"a + b - c",
+			"((a + b) - c)",
+		},
+		{
+			"a * b * c",
+			"((a * b) * c)",
+		},
+		{
+			"a * b / c",
+			"((a * b) / c)",
+		},
+		{
+			"a + b / c",
+			"(a + (b / c))",
+		},
+		{
+			"a + b * c + d / e - f",
+			"(((a + (b * c)) + (d / e)) - f)",
+		},
+		{
+			"3 + 4; -5 * 5",
+			"(3 + 4)((-5) * 5)",
+		},
+		{
+			"5 > 4 == 3 < 4",
+			"((5 > 4) == (3 < 4))",
+		},
+		{
+			"5 < 4 != 3 > 4",
+			"((5 < 4) != (3 > 4))",
+		},
+		{
+			"3 + 4 * 5 == 3 * 1 + 4 * 5",
+			"((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+		},
+	}
+
+	for i, ot := range tests {
+		program := checkParseProgram(t, ot.input, -1)
+
+		actual := program.String()
+
+		if actual != ot.expected {
+			t.Errorf("[%d] expected: %q, got %q", i, ot.expected, actual)
+		}
+	}
+}
+
 func checkParseProgram(t *testing.T, input string, expectednstmts int) *ast.Program {
 	l := lexer.NewFromString(input)
 	p := New(l)
@@ -130,7 +237,8 @@ func checkParseProgram(t *testing.T, input string, expectednstmts int) *ast.Prog
 	if program == nil {
 		t.Fatalf("ParseProgram() returned nil")
 	}
-	if nstmts := len(program.Statements); nstmts != expectednstmts {
+
+	if nstmts := len(program.Statements); expectednstmts > 0 && nstmts != expectednstmts {
 		t.Fatalf("expected %d statement(s), got %d", expectednstmts, nstmts)
 	}
 	return program

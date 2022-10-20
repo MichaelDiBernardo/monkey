@@ -45,6 +45,25 @@ const (
 	P_CALL
 )
 
+var precedences = map[token.TokenType]Precedence{
+	token.EQ:       P_EQUALS,
+	token.NEQ:      P_EQUALS,
+	token.LANGLE:   P_LESSGREATER,
+	token.RANGLE:   P_LESSGREATER,
+	token.PLUS:     P_SUM,
+	token.MINUS:    P_SUM,
+	token.RSLASH:   P_PRODUCT,
+	token.ASTERISK: P_PRODUCT,
+}
+
+func precedenceOfTokenType(tt token.TokenType) Precedence {
+	if prec, ok := precedences[tt]; ok {
+		return prec
+	}
+
+	return P_LOWEST
+}
+
 type Parser struct {
 	lexer  *lexer.Lexer
 	errors []ParseError
@@ -68,6 +87,14 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
 
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
+	p.registerInfix(token.PLUS, p.parseInfixExpression)
+	p.registerInfix(token.MINUS, p.parseInfixExpression)
+	p.registerInfix(token.RSLASH, p.parseInfixExpression)
+	p.registerInfix(token.ASTERISK, p.parseInfixExpression)
+	p.registerInfix(token.LANGLE, p.parseInfixExpression)
+	p.registerInfix(token.RANGLE, p.parseInfixExpression)
+	p.registerInfix(token.EQ, p.parseInfixExpression)
+	p.registerInfix(token.NEQ, p.parseInfixExpression)
 
 	return p
 }
@@ -99,6 +126,34 @@ func (p *Parser) registerInfix(tt token.TokenType, fn infixParseFn) {
 func (p *Parser) nextToken() {
 	p.curToken = p.peekToken
 	p.peekToken = p.lexer.NextToken()
+}
+
+// advanceIfPeekTokenIs is a predicate that also does a bunch of work. This is
+// generally frowned upon, but for this specific operation is pretty handy.
+//
+// It:
+// - calls nextToken() and returns true if ttype matches the peekToken's type
+// - adds a parse error and returns false otherwise
+func (p *Parser) advanceIfPeekTokenIs(ttype token.TokenType) bool {
+	if p.peekToken.Is(ttype) {
+		p.nextToken()
+		return true
+	} else {
+		p.addErrorForMismatchedPeekToken(ttype)
+		return false
+	}
+}
+
+// addErrorForMismatchedPeekToken adds an appropriate error to the errors
+// collection when the peekToken's type doesn't match the given expectedType.
+func (p *Parser) addErrorForMismatchedPeekToken(expectedType token.TokenType) {
+	msg := fmt.Sprintf("expected next token to be %s, got %s '%s' instead", expectedType, p.peekToken.Type, p.peekToken.Literal)
+	p.errors = append(p.errors, ParseError{Message: msg, Location: p.peekToken.Location})
+}
+
+func (p *Parser) addErrorForMissingPrefixFn(tt token.TokenType) {
+	msg := fmt.Sprintf("no prefix parse fn for tokentype %s", tt)
+	p.errors = append(p.errors, ParseError{Message: msg, Location: p.curToken.Location})
 }
 
 func (p *Parser) parseStatement() ast.Statement {
@@ -159,46 +214,6 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	return stmt
 }
 
-func (p *Parser) parseExpression(precedence Precedence) ast.Expression {
-	pfn := p.prefixParseFns[p.curToken.Type]
-
-	if pfn == nil {
-		p.addErrorForMissingPrefixFn(p.curToken.Type)
-		return nil
-	}
-	lhs := pfn()
-
-	return lhs
-}
-
-// advanceIfPeekTokenIs is a predicate that also does a bunch of work. This is
-// generally frowned upon, but for this specific operation is pretty handy.
-//
-// It:
-// - calls nextToken() and returns true if ttype matches the peekToken's type
-// - adds a parse error and returns false otherwise
-func (p *Parser) advanceIfPeekTokenIs(ttype token.TokenType) bool {
-	if p.peekToken.Is(ttype) {
-		p.nextToken()
-		return true
-	} else {
-		p.addErrorForMismatchedPeekToken(ttype)
-		return false
-	}
-}
-
-// addErrorForMismatchedPeekToken adds an appropriate error to the errors
-// collection when the peekToken's type doesn't match the given expectedType.
-func (p *Parser) addErrorForMismatchedPeekToken(expectedType token.TokenType) {
-	msg := fmt.Sprintf("expected next token to be %s, got %s '%s' instead", expectedType, p.peekToken.Type, p.peekToken.Literal)
-	p.errors = append(p.errors, ParseError{Message: msg, Location: p.peekToken.Location})
-}
-
-func (p *Parser) addErrorForMissingPrefixFn(tt token.TokenType) {
-	msg := fmt.Sprintf("no prefix parse fn for tokentype %s", tt)
-	p.errors = append(p.errors, ParseError{Message: msg, Location: p.curToken.Location})
-}
-
 func (p *Parser) parseIdentifier() ast.Expression {
 	return &ast.Identifier{IdentToken: p.curToken, Value: p.curToken.Literal}
 }
@@ -225,4 +240,42 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 
 	expression.RHS = p.parseExpression(P_PREFIX)
 	return expression
+}
+
+func (p *Parser) parseInfixExpression(lhs ast.Expression) ast.Expression {
+	expression := &ast.InfixExpression{
+		LHS:           lhs,
+		OperatorToken: p.curToken,
+		Operator:      p.curToken.Literal,
+	}
+
+	prec := precedenceOfTokenType(p.curToken.Type)
+	p.nextToken()
+	expression.RHS = p.parseExpression(prec)
+
+	return expression
+}
+
+func (p *Parser) parseExpression(precedence Precedence) ast.Expression {
+	pfn := p.prefixParseFns[p.curToken.Type]
+
+	if pfn == nil {
+		p.addErrorForMissingPrefixFn(p.curToken.Type)
+		return nil
+	}
+	lhs := pfn()
+
+	for !p.peekToken.Is(token.SEMICOLON) && precedence < precedenceOfTokenType(p.peekToken.Type) {
+		infix := p.infixParseFns[p.peekToken.Type]
+
+		if infix == nil {
+			return lhs
+		}
+
+		p.nextToken()
+
+		lhs = infix(lhs)
+	}
+
+	return lhs
 }
