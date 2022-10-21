@@ -201,9 +201,14 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 }
 
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
+	// Assign these outside the struct declaration, because parseExpression
+	// advances curToken.
+	firstToken := p.curToken
+	value := p.parseExpression(P_LOWEST)
+
 	stmt := &ast.ExpressionStatement{
-		FirstToken: p.curToken,
-		Value:      p.parseExpression(P_LOWEST),
+		FirstToken: firstToken,
+		Value:      value,
 	}
 
 	// Semicolons are optional in expression statements.
