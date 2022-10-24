@@ -25,6 +25,7 @@ var commands = []command{
 func main() {
 	if len(os.Args) <= 1 {
 		printUsage()
+		return
 	}
 
 	cmdarg := os.Args[1]
