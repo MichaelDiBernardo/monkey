@@ -1,6 +1,11 @@
 package lexer
 
-import "github.com/MichaelDiBernardo/monkey/token"
+import (
+	"io"
+	"os"
+
+	"github.com/MichaelDiBernardo/monkey/token"
+)
 
 type Lexer struct {
 	input      string
@@ -16,6 +21,28 @@ func NewFromString(input string) *Lexer {
 	l := &Lexer{input: input, currentLoc: token.Location{Path: token.NO_FILEPATH, CharN: 0, LineN: 1}}
 	l.readChar()
 	return l
+}
+
+func NewFromPath(path string) (*Lexer, error) {
+	f, err := os.Open(path)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer f.Close()
+
+	bytes, err := io.ReadAll(f)
+
+	if err != nil {
+		return nil, err
+	}
+
+	input := string(bytes[:])
+
+	l := &Lexer{input: input, currentLoc: token.Location{Path: path, CharN: 0, LineN: 1}}
+	l.readChar()
+	return l, nil
 }
 
 func (l *Lexer) NextToken() token.Token {

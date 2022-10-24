@@ -152,7 +152,7 @@ func (p *Parser) addErrorForMismatchedPeekToken(expectedType token.TokenType) {
 }
 
 func (p *Parser) addErrorForMissingPrefixFn(tt token.TokenType) {
-	msg := fmt.Sprintf("no prefix parse fn for tokentype %s", tt)
+	msg := fmt.Sprintf("unexpected token type %s while parsing prefix expression", tt)
 	p.errors = append(p.errors, ParseError{Message: msg, Location: p.curToken.Location})
 }
 
