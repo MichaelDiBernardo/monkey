@@ -173,16 +173,19 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	if !p.advanceIfPeekTokenIs(token.IDENTIFIER) {
 		return nil
 	}
+
 	ident := p.curToken
+	stmt.Name = &ast.Identifier{IdentToken: ident, Value: ident.Literal}
 
 	if !p.advanceIfPeekTokenIs(token.ASSIGN) {
 		return nil
 	}
 
-	stmt.Name = &ast.Identifier{IdentToken: ident, Value: ident.Literal}
+	p.nextToken()
 
-	// Skip expression for now.
-	for !p.curToken.Is(token.SEMICOLON) {
+	stmt.Value = p.parseExpression(P_LOWEST)
+
+	if p.peekToken.Is(token.SEMICOLON) {
 		p.nextToken()
 	}
 
@@ -192,8 +195,10 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	stmt := &ast.ReturnStatement{ReturnToken: p.curToken}
 
-	// Skip expression for now.
-	for !p.curToken.Is(token.SEMICOLON) {
+	p.nextToken()
+	stmt.Value = p.parseExpression(P_LOWEST)
+
+	if p.peekToken.Is(token.SEMICOLON) {
 		p.nextToken()
 	}
 
