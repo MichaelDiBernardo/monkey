@@ -83,6 +83,8 @@ func New(l *lexer.Lexer) *Parser {
 	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
 	p.registerPrefix(token.IDENTIFIER, p.parseIdentifier)
 	p.registerPrefix(token.INT, p.parseIntegerLiteral)
+	p.registerPrefix(token.TRUE, p.parseBooleanLiteral)
+	p.registerPrefix(token.FALSE, p.parseBooleanLiteral)
 	p.registerPrefix(token.BANG, p.parsePrefixExpression)
 	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
 
@@ -226,6 +228,18 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 
 func (p *Parser) parseIdentifier() ast.Expression {
 	return &ast.Identifier{IdentToken: p.curToken, Value: p.curToken.Literal}
+}
+
+func (p *Parser) parseBooleanLiteral() ast.Expression {
+	boolval, err := strconv.ParseBool(p.curToken.Literal)
+
+	if err != nil {
+		msg := fmt.Sprintf("could not parse %s as bool literal", p.curToken.Literal)
+		p.errors = append(p.errors, ParseError{Message: msg, Location: p.curToken.Location})
+		return nil
+	}
+
+	return &ast.BooleanLiteral{BoolToken: p.curToken, Value: boolval}
 }
 
 func (p *Parser) parseIntegerLiteral() ast.Expression {

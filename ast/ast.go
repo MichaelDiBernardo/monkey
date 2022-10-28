@@ -146,6 +146,19 @@ func (il *IntegerLiteral) String() string {
 	return fmt.Sprintf("%d", il.Value)
 }
 
+// BooleanLiteral is an expression composed of an integer literal.
+type BooleanLiteral struct {
+	BoolToken token.Token
+	Value     bool
+}
+
+func (bl *BooleanLiteral) expressionNode()    {}
+func (bl *BooleanLiteral) Token() token.Token { return bl.BoolToken }
+
+func (bl *BooleanLiteral) String() string {
+	return fmt.Sprintf("%t", bl.Value)
+}
+
 type PrefixExpression struct {
 	OperatorToken token.Token
 	Operator      string
