@@ -96,6 +96,103 @@ func TestBooleanExpression(t *testing.T) {
 	testBooleanLiteral(t, stmt.Value, true)
 }
 
+func TestIfExpression(t *testing.T) {
+	input := "if (x < y) { x }"
+	program := checkParseProgram(t, input, 1)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+
+	if !ok {
+		t.Fatalf("stmt was bad type %T", program.Statements[0])
+	}
+
+	ifexp, ok := stmt.Value.(*ast.IfExpression)
+
+	if !ok {
+		t.Fatalf("stmt exp was bad type %T", stmt.Value)
+	}
+
+	if exp, act := token.IF, ifexp.Token().Type; exp != act {
+		t.Errorf("Expected if expression token to be %q, got %q", exp, act)
+	}
+
+	if !testInfixExpression(t, ifexp.Condition, "x", "<", "y") {
+		return
+	}
+
+	if nstmts := len(ifexp.Consequence.Statements); nstmts != 1 {
+		t.Fatalf("expected 1 statement in consequence, got %d", nstmts)
+	}
+
+	cexp, ok := ifexp.Consequence.Statements[0].(*ast.ExpressionStatement)
+
+	if !ok {
+		t.Fatalf("consequence stmt was bad type %T", ifexp.Consequence.Statements[0])
+	}
+
+	if !testIdentifier(t, cexp.Value, "x") {
+		return
+	}
+
+	if ifexp.Alternative != nil {
+		t.Errorf("expected alternative to be nil, got %v", ifexp.Alternative)
+	}
+}
+
+func TestIfElseExpression(t *testing.T) {
+	input := "if (x < y) { x } else { y }"
+	program := checkParseProgram(t, input, 1)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+
+	if !ok {
+		t.Fatalf("stmt was bad type %T", program.Statements[0])
+	}
+
+	ifexp, ok := stmt.Value.(*ast.IfExpression)
+
+	if !ok {
+		t.Fatalf("stmt exp was bad type %T", stmt.Value)
+	}
+
+	if exp, act := token.IF, ifexp.Token().Type; exp != act {
+		t.Errorf("Expected if expression token to be %q, got %q", exp, act)
+	}
+
+	if !testInfixExpression(t, ifexp.Condition, "x", "<", "y") {
+		return
+	}
+
+	if nstmts := len(ifexp.Consequence.Statements); nstmts != 1 {
+		t.Fatalf("expected 1 statement in consequence, got %d", nstmts)
+	}
+
+	cexp, ok := ifexp.Consequence.Statements[0].(*ast.ExpressionStatement)
+
+	if !ok {
+		t.Fatalf("consequence stmt was bad type %T", ifexp.Consequence.Statements[0])
+	}
+
+	if !testIdentifier(t, cexp.Value, "x") {
+		return
+	}
+
+	if nstmts := len(ifexp.Alternative.Statements); nstmts != 1 {
+		t.Fatalf("expected 1 statement in alternative, got %d", nstmts)
+	}
+
+	aexp, ok := ifexp.Alternative.Statements[0].(*ast.ExpressionStatement)
+
+	if !ok {
+		t.Fatalf("alternative stmt was bad type %T", ifexp.Alternative.Statements[0])
+	}
+
+	if !testIdentifier(t, aexp.Value, "y") {
+		return
+	}
+
+}
+
 func TestPrefixExpressions(t *testing.T) {
 	prefixTests := []struct {
 		input    string
@@ -136,9 +233,9 @@ func TestPrefixExpressions(t *testing.T) {
 func TestInfixExpressions(t *testing.T) {
 	infixTests := []struct {
 		input    string
-		LHS      interface{}
+		lhs      interface{}
 		operator string
-		RHS      interface{}
+		rhs      interface{}
 	}{
 		{"12 + 13;", 12, "+", 13},
 		{"12 - 13;", 12, "-", 13},
@@ -169,21 +266,8 @@ func TestInfixExpressions(t *testing.T) {
 			t.Fatalf("[%d]: expected ast.ExpressionStatement, got %T", i, program.Statements[0])
 		}
 
-		exp, ok := stmt.Value.(*ast.InfixExpression)
-
-		if !ok {
-			t.Fatalf("[%d]: expected Value type *ast.InfixExpression, got %T", i, stmt.Value)
-		}
-
-		if exp.Operator != it.operator {
-			t.Fatalf("[%d]: expected operator %q, got %q", i, it.operator, exp.Operator)
-		}
-
-		if !testLiteralExpression(t, exp.LHS, it.LHS) {
-			t.Errorf("(failed test [%d]", i)
-		}
-		if !testLiteralExpression(t, exp.RHS, it.RHS) {
-			t.Errorf("(failed test [%d]", i)
+		if !testInfixExpression(t, stmt.Value, it.lhs, it.operator, it.rhs) {
+			t.Errorf("[%d]: testInfixExpression failed.", i)
 		}
 	}
 }
@@ -396,4 +480,23 @@ func testLiteralExpression(t *testing.T, exp ast.Expression, expected interface{
 	}
 	t.Errorf("expression type %T not handled", expected)
 	return false
+}
+
+func testInfixExpression(t *testing.T, exp ast.Expression, lhs interface{}, operator string, rhs interface{}) bool {
+	opExp, ok := exp.(*ast.InfixExpression)
+	if !ok {
+		t.Errorf("exp is not ast.InfixExpression. got=%T(%s)", exp, exp)
+		return false
+	}
+	if !testLiteralExpression(t, opExp.LHS, lhs) {
+		return false
+	}
+	if opExp.Operator != operator {
+		t.Errorf("exp.Operator is not '%s'. got=%q", operator, opExp.Operator)
+		return false
+	}
+	if !testLiteralExpression(t, opExp.RHS, rhs) {
+		return false
+	}
+	return true
 }

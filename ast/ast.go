@@ -120,6 +120,30 @@ func (es *ExpressionStatement) String() string {
 	return ""
 }
 
+// BlockStatement is an aggregate of statements contained within curly braces.
+type BlockStatement struct {
+	StartToken token.Token // The LPAREN token that starts the block.
+	Statements []Statement
+}
+
+func (bs *BlockStatement) statementNode() {}
+
+func (bs *BlockStatement) Token() token.Token {
+	return bs.StartToken
+}
+
+func (bs *BlockStatement) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("{")
+	for _, stmt := range bs.Statements {
+		out.WriteString(stmt.String())
+	}
+	out.WriteString("}")
+
+	return out.String()
+}
+
 // Identifier is an expression composed of a single identifier.
 type Identifier struct {
 	IdentToken token.Token
@@ -199,6 +223,32 @@ func (pe *InfixExpression) String() string {
 	out.WriteString(" ")
 	out.WriteString(pe.RHS.String())
 	out.WriteString(")")
+
+	return out.String()
+}
+
+type IfExpression struct {
+	IfToken     token.Token // IF token
+	Condition   Expression
+	Consequence *BlockStatement
+	Alternative *BlockStatement
+}
+
+func (ie *IfExpression) expressionNode()    {}
+func (ie *IfExpression) Token() token.Token { return ie.IfToken }
+
+func (ie *IfExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("if")
+	out.WriteString(ie.Condition.String())
+	out.WriteString(" ")
+	out.WriteString(ie.Consequence.String())
+
+	if ie.Alternative != nil {
+		out.WriteString("else ")
+		out.WriteString(ie.Alternative.String())
+	}
 
 	return out.String()
 }
