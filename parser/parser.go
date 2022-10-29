@@ -137,13 +137,12 @@ func (p *Parser) nextToken() {
 //
 // It:
 // - calls nextToken() and returns true if ttype matches the peekToken's type
-// - adds a parse error and returns false otherwise
+// - returns false otherwise
 func (p *Parser) advanceIfPeekTokenIs(ttype token.TokenType) bool {
 	if p.peekToken.Is(ttype) {
 		p.nextToken()
 		return true
 	} else {
-		p.addErrorForMismatchedPeekToken(ttype)
 		return false
 	}
 }
@@ -175,6 +174,7 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt := &ast.LetStatement{LetToken: p.curToken}
 
 	if !p.advanceIfPeekTokenIs(token.IDENTIFIER) {
+		p.addErrorForMismatchedPeekToken(token.IDENTIFIER)
 		return nil
 	}
 
@@ -182,6 +182,7 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt.Name = &ast.Identifier{IdentToken: ident, Value: ident.Literal}
 
 	if !p.advanceIfPeekTokenIs(token.ASSIGN) {
+		p.addErrorForMismatchedPeekToken(token.ASSIGN)
 		return nil
 	}
 
@@ -233,9 +234,9 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 		p.addErrorForMismatchedPeekToken(token.LBRACE)
 		return nil
 	}
+	block := &ast.BlockStatement{StartToken: p.curToken}
 	p.nextToken()
 
-	block := &ast.BlockStatement{StartToken: p.curToken}
 	block.Statements = []ast.Statement{}
 
 	for !p.curToken.Is(token.RBRACE) && !p.curToken.Is(token.EOF) {
@@ -243,6 +244,7 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 		block.Statements = append(block.Statements, stmt)
 		p.nextToken()
 	}
+
 	return block
 }
 
@@ -339,7 +341,6 @@ func (p *Parser) parseIfExpression() ast.Expression {
 	var alternative *ast.BlockStatement = nil
 
 	if p.advanceIfPeekTokenIs(token.ELSE) {
-		p.nextToken()
 		alternative = p.parseBlockStatement()
 
 		if alternative == nil {
