@@ -230,10 +230,6 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 }
 
 func (p *Parser) parseBlockStatement() *ast.BlockStatement {
-	if !p.advanceIfPeekTokenIs(token.LBRACE) {
-		p.addErrorForMismatchedPeekToken(token.LBRACE)
-		return nil
-	}
 	block := &ast.BlockStatement{StartToken: p.curToken}
 	p.nextToken()
 
@@ -332,6 +328,11 @@ func (p *Parser) parseIfExpression() ast.Expression {
 		return nil
 	}
 
+	if !p.advanceIfPeekTokenIs(token.LBRACE) {
+		p.addErrorForMismatchedPeekToken(token.LBRACE)
+		return nil
+	}
+
 	consequence := p.parseBlockStatement()
 
 	if consequence == nil {
@@ -341,6 +342,10 @@ func (p *Parser) parseIfExpression() ast.Expression {
 	var alternative *ast.BlockStatement = nil
 
 	if p.advanceIfPeekTokenIs(token.ELSE) {
+		if !p.advanceIfPeekTokenIs(token.LBRACE) {
+			p.addErrorForMismatchedPeekToken(token.LBRACE)
+			return nil
+		}
 		alternative = p.parseBlockStatement()
 
 		if alternative == nil {
