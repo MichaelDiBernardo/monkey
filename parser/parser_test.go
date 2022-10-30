@@ -193,6 +193,46 @@ func TestIfElseExpression(t *testing.T) {
 
 }
 
+func TestParseFunctionLiteral(t *testing.T) {
+	input := "fn(x, y) { x + y;}"
+	program := checkParseProgram(t, input, 1)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+
+	if !ok {
+		t.Fatalf("stmt was bad type %T", program.Statements[0])
+	}
+
+	fl, ok := stmt.Value.(*ast.FunctionLiteral)
+
+	if !ok {
+		t.Fatalf("expected *ast.FunctionLiteral, got %T", stmt.Value)
+	}
+
+	if fl.FnToken.Type != token.FUNCTION {
+		t.Errorf("expected FnToken type %s, got %s", token.FUNCTION, fl.FnToken.Type)
+	}
+
+	if exp, act := 2, len(fl.Parameters); exp != act {
+		t.Errorf("expected %d params, got %d", exp, act)
+	}
+
+	testIdentifier(t, fl.Parameters[0], "x")
+	testIdentifier(t, fl.Parameters[1], "y")
+
+	if exp, act := 1, len(fl.Body.Statements); exp != act {
+		t.Errorf("expected %d statements in func body, got %d", exp, act)
+	}
+
+	bodystmt, ok := fl.Body.Statements[0].(*ast.ExpressionStatement)
+
+	if !ok {
+		t.Fatalf("bodystmt was bad type %T", fl.Body.Statements[0])
+	}
+
+	testInfixExpression(t, bodystmt.Value, "x", "+", "y")
+}
+
 func TestPrefixExpressions(t *testing.T) {
 	prefixTests := []struct {
 		input    string

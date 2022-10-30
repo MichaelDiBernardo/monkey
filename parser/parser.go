@@ -85,6 +85,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.INT, p.parseIntegerLiteral)
 	p.registerPrefix(token.TRUE, p.parseBooleanLiteral)
 	p.registerPrefix(token.FALSE, p.parseBooleanLiteral)
+	p.registerPrefix(token.FUNCTION, p.parseFunctionLiteral)
 	p.registerPrefix(token.BANG, p.parsePrefixExpression)
 	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
 	p.registerPrefix(token.LPAREN, p.parseGroupedExpression)
@@ -270,6 +271,52 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 	}
 
 	return &ast.IntegerLiteral{IntToken: p.curToken, Value: intval}
+}
+
+func (p *Parser) parseFunctionLiteral() ast.Expression {
+	fn := &ast.FunctionLiteral{FnToken: p.curToken}
+
+	if !p.advanceIfPeekTokenIs(token.LPAREN) {
+		p.addErrorForMismatchedPeekToken(token.LPAREN)
+		return nil
+	}
+
+	fn.Parameters = p.parseFunctionParameters()
+
+	if !p.advanceIfPeekTokenIs(token.LBRACE) {
+		p.addErrorForMismatchedPeekToken(token.LBRACE)
+		return nil
+	}
+
+	fn.Body = p.parseBlockStatement()
+
+	return fn
+}
+
+func (p *Parser) parseFunctionParameters() []*ast.Identifier {
+	params := []*ast.Identifier{}
+	p.nextToken()
+
+	for {
+		if p.curToken.Is(token.EOF) {
+			p.addErrorForMismatchedPeekToken(token.RPAREN)
+		}
+		if p.curToken.Is(token.RPAREN) {
+			break
+		}
+
+		params = append(params, p.parseIdentifier().(*ast.Identifier))
+
+		if p.advanceIfPeekTokenIs(token.COMMA) {
+			p.nextToken()
+		} else if p.advanceIfPeekTokenIs(token.RPAREN) {
+			continue
+		} else {
+			p.addErrorForMismatchedPeekToken(token.COMMA)
+			return nil
+		}
+	}
+	return params
 }
 
 func (p *Parser) parsePrefixExpression() ast.Expression {
