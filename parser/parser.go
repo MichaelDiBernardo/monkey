@@ -150,11 +150,11 @@ func (p *Parser) advanceIfPeekTokenIs(ttype token.TokenType) bool {
 	}
 }
 
-// addErrorForMismatchedPeekToken adds an appropriate error to the errors
-// collection when the peekToken's type doesn't match the given expectedType.
-func (p *Parser) addErrorForMismatchedPeekToken(expectedType token.TokenType) {
-	msg := fmt.Sprintf("expected next token to be %s, got %s '%s' instead", expectedType, p.peekToken.Type, p.peekToken.Literal)
-	p.errors = append(p.errors, ParseError{Message: msg, Location: p.peekToken.Location})
+// addErrorForMismatchedToken adds an appropriate error to the errors
+// collection when the given token doesn't have the given expectedType.
+func (p *Parser) addErrorForMismatchedToken(tok token.Token, expectedType token.TokenType) {
+	msg := fmt.Sprintf("expected next token to be %s, got %s '%s' instead", expectedType, tok.Type, tok.Literal)
+	p.errors = append(p.errors, ParseError{Message: msg, Location: tok.Location})
 }
 
 func (p *Parser) addErrorForMissingPrefixFn(tt token.TokenType) {
@@ -177,7 +177,7 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt := &ast.LetStatement{LetToken: p.curToken}
 
 	if !p.advanceIfPeekTokenIs(token.IDENTIFIER) {
-		p.addErrorForMismatchedPeekToken(token.IDENTIFIER)
+		p.addErrorForMismatchedToken(p.peekToken, token.IDENTIFIER)
 		return nil
 	}
 
@@ -185,7 +185,7 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt.Name = &ast.Identifier{IdentToken: ident, Value: ident.Literal}
 
 	if !p.advanceIfPeekTokenIs(token.ASSIGN) {
-		p.addErrorForMismatchedPeekToken(token.ASSIGN)
+		p.addErrorForMismatchedToken(p.peekToken, token.ASSIGN)
 		return nil
 	}
 
@@ -279,14 +279,14 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 	fn := &ast.FunctionLiteral{FnToken: p.curToken}
 
 	if !p.advanceIfPeekTokenIs(token.LPAREN) {
-		p.addErrorForMismatchedPeekToken(token.LPAREN)
+		p.addErrorForMismatchedToken(p.peekToken, token.LPAREN)
 		return nil
 	}
 
 	fn.Parameters = p.parseFunctionParameters()
 
 	if !p.advanceIfPeekTokenIs(token.LBRACE) {
-		p.addErrorForMismatchedPeekToken(token.LBRACE)
+		p.addErrorForMismatchedToken(p.peekToken, token.LBRACE)
 		return nil
 	}
 
@@ -301,7 +301,7 @@ func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 
 	for {
 		if p.curToken.Is(token.EOF) {
-			p.addErrorForMismatchedPeekToken(token.RPAREN)
+			p.addErrorForMismatchedToken(p.curToken, token.RPAREN)
 		}
 		if p.curToken.Is(token.RPAREN) {
 			break
@@ -314,7 +314,7 @@ func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 		} else if p.advanceIfPeekTokenIs(token.RPAREN) {
 			continue
 		} else {
-			p.addErrorForMismatchedPeekToken(token.COMMA)
+			p.addErrorForMismatchedToken(p.peekToken, token.COMMA)
 			return nil
 		}
 	}
@@ -364,7 +364,7 @@ func (p *Parser) parseIfExpression() ast.Expression {
 	iftok := p.curToken
 
 	if !p.advanceIfPeekTokenIs(token.LPAREN) {
-		p.addErrorForMismatchedPeekToken(token.LPAREN)
+		p.addErrorForMismatchedToken(p.peekToken, token.LPAREN)
 		return nil
 	}
 
@@ -373,12 +373,12 @@ func (p *Parser) parseIfExpression() ast.Expression {
 	condition := p.parseExpression(P_LOWEST)
 
 	if !p.advanceIfPeekTokenIs(token.RPAREN) {
-		p.addErrorForMismatchedPeekToken(token.RPAREN)
+		p.addErrorForMismatchedToken(p.peekToken, token.RPAREN)
 		return nil
 	}
 
 	if !p.advanceIfPeekTokenIs(token.LBRACE) {
-		p.addErrorForMismatchedPeekToken(token.LBRACE)
+		p.addErrorForMismatchedToken(p.peekToken, token.LBRACE)
 		return nil
 	}
 
@@ -392,7 +392,7 @@ func (p *Parser) parseIfExpression() ast.Expression {
 
 	if p.advanceIfPeekTokenIs(token.ELSE) {
 		if !p.advanceIfPeekTokenIs(token.LBRACE) {
-			p.addErrorForMismatchedPeekToken(token.LBRACE)
+			p.addErrorForMismatchedToken(p.peekToken, token.LBRACE)
 			return nil
 		}
 		alternative = p.parseBlockStatement()
@@ -418,7 +418,7 @@ func (p *Parser) parseCallExpression(lhs ast.Expression) ast.Expression {
 			break
 		}
 		if p.curToken.Is(token.EOF) {
-			p.addErrorForMismatchedPeekToken(token.RPAREN)
+			p.addErrorForMismatchedToken(p.curToken, token.RPAREN)
 			return nil
 		}
 
