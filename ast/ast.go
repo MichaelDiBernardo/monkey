@@ -279,3 +279,28 @@ func (fl *FunctionLiteral) String() string {
 
 	return out.String()
 }
+
+type CallExpression struct {
+	LPToken   token.Token // The lparen before the args.
+	Function  Expression  // Expression that evaluates to func literal
+	Arguments []Expression
+}
+
+func (ce *CallExpression) expressionNode()    {}
+func (ce *CallExpression) Token() token.Token { return ce.LPToken }
+
+func (ce *CallExpression) String() string {
+	var out bytes.Buffer
+
+	args := []string{}
+	for _, arg := range ce.Arguments {
+		args = append(args, arg.String())
+	}
+
+	out.WriteString(ce.Function.String())
+	out.WriteString("(")
+	out.WriteString(strings.Join(args, ", "))
+	out.WriteString(")")
+
+	return out.String()
+}

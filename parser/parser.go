@@ -54,6 +54,7 @@ var precedences = map[token.TokenType]Precedence{
 	token.MINUS:    P_SUM,
 	token.RSLASH:   P_PRODUCT,
 	token.ASTERISK: P_PRODUCT,
+	token.LPAREN:   P_CALL,
 }
 
 func precedenceOfTokenType(tt token.TokenType) Precedence {
@@ -100,6 +101,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.RANGLE, p.parseInfixExpression)
 	p.registerInfix(token.EQ, p.parseInfixExpression)
 	p.registerInfix(token.NEQ, p.parseInfixExpression)
+	p.registerInfix(token.LPAREN, p.parseCallExpression)
 
 	return p
 }
@@ -404,6 +406,35 @@ func (p *Parser) parseIfExpression() ast.Expression {
 	return &ast.IfExpression{IfToken: iftok, Condition: condition, Consequence: consequence, Alternative: alternative}
 
 }
+
+func (p *Parser) parseCallExpression(lhs ast.Expression) ast.Expression {
+	exp := &ast.CallExpression{LPToken: p.curToken, Function: lhs}
+
+	arguments := []ast.Expression{}
+	p.nextToken()
+
+	for {
+		if p.curToken.Is(token.RPAREN) {
+			break
+		}
+		if p.curToken.Is(token.EOF) {
+			p.addErrorForMismatchedPeekToken(token.RPAREN)
+			return nil
+		}
+
+		arguments = append(arguments, p.parseExpression(P_LOWEST))
+
+		if p.advanceIfPeekTokenIs(token.COMMA) {
+			p.nextToken()
+		} else {
+			p.advanceIfPeekTokenIs(token.RPAREN)
+		}
+	}
+
+	exp.Arguments = arguments
+	return exp
+}
+
 func (p *Parser) parseExpression(precedence Precedence) ast.Expression {
 	pfn := p.prefixParseFns[p.curToken.Type]
 

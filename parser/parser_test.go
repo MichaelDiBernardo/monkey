@@ -233,6 +233,89 @@ func TestParseFunctionLiteral(t *testing.T) {
 	testInfixExpression(t, bodystmt.Value, "x", "+", "y")
 }
 
+func TestParseCallExpression(t *testing.T) {
+	input := "sum(1, 2 * 3, 4 + 5);"
+	program := checkParseProgram(t, input, 1)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+
+	if !ok {
+		t.Fatalf("stmt was bad type %T", program.Statements[0])
+	}
+
+	callexp, ok := stmt.Value.(*ast.CallExpression)
+
+	if !ok {
+		t.Fatalf("stmt was bad type %T", stmt.Value)
+
+	}
+
+	if exp, act := token.LPAREN, callexp.Token().Type; exp != act {
+		t.Errorf("expected token type %s, got %s", exp, act)
+	}
+
+	testIdentifier(t, callexp.Function, "sum")
+
+	if exp, act := 3, len(callexp.Arguments); exp != act {
+		t.Fatalf("expected %d argument expressions, got %d", exp, act)
+	}
+
+	testLiteralExpression(t, callexp.Arguments[0], 1)
+	testInfixExpression(t, callexp.Arguments[1], 2, "*", 3)
+	testInfixExpression(t, callexp.Arguments[2], 4, "+", 5)
+}
+
+func TestParseCallExpressionArguments(t *testing.T) {
+	tests := []struct {
+		input         string
+		expectedIdent string
+		expectedArgs  []string
+	}{
+		{
+			input:         "add();",
+			expectedIdent: "add",
+			expectedArgs:  []string{},
+		},
+		{
+			input:         "add(1);",
+			expectedIdent: "add",
+			expectedArgs:  []string{"1"},
+		},
+		{
+			input:         "add(1, 2 * 3, 4 + 5);",
+			expectedIdent: "add",
+			expectedArgs:  []string{"1", "(2 * 3)", "(4 + 5)"},
+		},
+	}
+
+	for _, tt := range tests {
+		program := checkParseProgram(t, tt.input, 1)
+
+		stmt := program.Statements[0].(*ast.ExpressionStatement)
+		exp, ok := stmt.Value.(*ast.CallExpression)
+		if !ok {
+			t.Fatalf("stmt.Expression is not ast.CallExpression. got=%T",
+				stmt.Value)
+		}
+
+		if !testIdentifier(t, exp.Function, tt.expectedIdent) {
+			return
+		}
+
+		if len(exp.Arguments) != len(tt.expectedArgs) {
+			t.Fatalf("wrong number of arguments. want=%d, got=%d",
+				len(tt.expectedArgs), len(exp.Arguments))
+		}
+
+		for i, arg := range tt.expectedArgs {
+			if exp.Arguments[i].String() != arg {
+				t.Errorf("argument %d wrong. want=%q, got=%q", i,
+					arg, exp.Arguments[i].String())
+			}
+		}
+	}
+}
+
 func TestPrefixExpressions(t *testing.T) {
 	prefixTests := []struct {
 		input    string
@@ -388,6 +471,18 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 		{
 			"!(true == true)",
 			"(!(true == true))",
+		},
+		{
+			"a + add(b * c) + d",
+			"((a + add((b * c))) + d)",
+		},
+		{
+			"add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+			"add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
+		},
+		{
+			"add(a + b + c * d / f + g)",
+			"add((((a + b) + ((c * d) / f)) + g))",
 		},
 	}
 
