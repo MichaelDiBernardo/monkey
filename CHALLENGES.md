@@ -7,6 +7,7 @@ Todo:
 - Code formatter
 - Debugger
 - vscode language server
+- Change all type flags to uint, and give that type a String()
 
 Complete:
 - Tokens track their location in the source.
