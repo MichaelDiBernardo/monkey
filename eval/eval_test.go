@@ -3,7 +3,6 @@ package eval
 import (
 	"testing"
 
-	"github.com/MichaelDiBernardo/monkey/ast"
 	"github.com/MichaelDiBernardo/monkey/lexer"
 	"github.com/MichaelDiBernardo/monkey/object"
 	"github.com/MichaelDiBernardo/monkey/parser"
@@ -19,12 +18,10 @@ func TestEvalIntegerExpression(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		program := parseProgram(t, tt.input)
+		result := evalProgram(t, tt.input)
 
-		result := Eval(program)
-
-		if !testIntegerLiteral(t, result, tt.expected) {
-			t.Errorf("[%d] failed testing integer literal", i)
+		if !testIntegerResult(t, result, tt.expected) {
+			t.Errorf("[%d] failed testing integer result", i)
 		}
 	}
 }
@@ -36,20 +33,24 @@ func TestEvalBooleanExpression(t *testing.T) {
 	}{
 		{"true", true},
 		{"false", false},
+		{"!true", false},
+		{"!false", true},
+		{"!!false", false},
+		{"!!true", true},
+		{"!81", false},
+		{"!!81", true},
 	}
 
 	for i, tt := range tests {
-		program := parseProgram(t, tt.input)
+		result := evalProgram(t, tt.input)
 
-		result := Eval(program)
-
-		if !testBooleanLiteral(t, result, tt.expected) {
-			t.Errorf("[%d] failed testing boolean literal", i)
+		if !testBooleanResult(t, result, tt.expected) {
+			t.Errorf("[%d] failed testing boolean result", i)
 		}
 	}
 }
 
-func testIntegerLiteral(t *testing.T, result object.Object, expected int64) bool {
+func testIntegerResult(t *testing.T, result object.Object, expected int64) bool {
 	intobj, ok := result.(*object.Integer)
 
 	if !ok {
@@ -64,7 +65,7 @@ func testIntegerLiteral(t *testing.T, result object.Object, expected int64) bool
 	return true
 }
 
-func testBooleanLiteral(t *testing.T, result object.Object, expected bool) bool {
+func testBooleanResult(t *testing.T, result object.Object, expected bool) bool {
 	boolobj, ok := result.(*object.Boolean)
 
 	if !ok {
@@ -79,7 +80,7 @@ func testBooleanLiteral(t *testing.T, result object.Object, expected bool) bool 
 	return true
 }
 
-func parseProgram(t *testing.T, input string) *ast.Program {
+func evalProgram(t *testing.T, input string) object.Object {
 	l := lexer.NewFromString(input)
 	p := parser.New(l)
 
@@ -89,7 +90,7 @@ func parseProgram(t *testing.T, input string) *ast.Program {
 		t.Fatalf("ParseProgram() returned nil")
 	}
 
-	return program
+	return Eval(program)
 }
 
 func failIfParserHasErrors(t *testing.T, p *parser.Parser) {
