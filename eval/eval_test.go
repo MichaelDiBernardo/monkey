@@ -23,13 +23,33 @@ func TestEvalIntegerExpression(t *testing.T) {
 
 		result := Eval(program)
 
-		if !testIntegerLiteral(result, t, tt.expected) {
+		if !testIntegerLiteral(t, result, tt.expected) {
 			t.Errorf("[%d] failed testing integer literal", i)
 		}
 	}
 }
 
-func testIntegerLiteral(result object.Object, t *testing.T, expected int64) bool {
+func TestEvalBooleanExpression(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{"true", true},
+		{"false", false},
+	}
+
+	for i, tt := range tests {
+		program := parseProgram(t, tt.input)
+
+		result := Eval(program)
+
+		if !testBooleanLiteral(t, result, tt.expected) {
+			t.Errorf("[%d] failed testing boolean literal", i)
+		}
+	}
+}
+
+func testIntegerLiteral(t *testing.T, result object.Object, expected int64) bool {
 	intobj, ok := result.(*object.Integer)
 
 	if !ok {
@@ -39,6 +59,21 @@ func testIntegerLiteral(result object.Object, t *testing.T, expected int64) bool
 
 	if act := intobj.Value; expected != act {
 		t.Errorf("expected %d, got %d", expected, act)
+		return false
+	}
+	return true
+}
+
+func testBooleanLiteral(t *testing.T, result object.Object, expected bool) bool {
+	boolobj, ok := result.(*object.Boolean)
+
+	if !ok {
+		t.Fatalf("expected *object.Boolean, got %T", result)
+		return false
+	}
+
+	if act := boolobj.Value; expected != act {
+		t.Errorf("expected %t, got %t", expected, act)
 		return false
 	}
 	return true

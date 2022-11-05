@@ -61,6 +61,9 @@ func (b *Boolean) Inspect() string {
 	return fmt.Sprintf("%t", b.Value)
 }
 
+var TRUE_OBJ = &Boolean{Value: true}
+var FALSE_OBJ = &Boolean{Value: false}
+
 // Null is an object that represents ... null.
 type Null struct{}
 
@@ -71,3 +74,5 @@ func (n *Null) Type() ObjectType {
 func (n *Null) Inspect() string {
 	return "null"
 }
+
+var NULL_OBJ = &Null{}
