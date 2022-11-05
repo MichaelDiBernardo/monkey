@@ -122,6 +122,10 @@ func (p *Parser) Errors() []ParseError {
 	return p.errors
 }
 
+func (p *Parser) HasErrors() bool {
+	return len(p.Errors()) > 0
+}
+
 func (p *Parser) registerPrefix(tt token.TokenType, fn prefixParseFn) {
 	p.prefixParseFns[tt] = fn
 }

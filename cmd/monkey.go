@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/MichaelDiBernardo/monkey/eval"
 	"github.com/MichaelDiBernardo/monkey/lexer"
 	"github.com/MichaelDiBernardo/monkey/parser"
 )
@@ -32,9 +34,11 @@ func main() {
 	for _, cmd := range commands {
 		if cmdarg == cmd.cmdarg {
 			cmd.run()
-			break
+			return
 		}
 	}
+
+	printUsage()
 }
 
 func printUsage() {
@@ -88,17 +92,50 @@ func run() {
 
 	program := parse.ParseProgram()
 
-	if perrs := parse.Errors(); len(perrs) > 0 {
-		var out bytes.Buffer
-		out.WriteString("found parse errors\n\n")
-		for i, perr := range perrs {
-			loc := perr.Location
-			out.WriteString(fmt.Sprintf("[%d] In %s (line %d, col %d): %s\n", i+1, loc.Path, loc.LineN, loc.CharN, perr.Message))
-		}
-		rfatal(out.String())
+	if parse.HasErrors() {
+		rfatal(stringifyParseErrors(parse))
 	}
 
-	fmt.Print(program.String(), "\n")
+	evaled := eval.Eval(program)
+	fmt.Print(evaled.Inspect(), "\n")
+}
+
+func repl() {
+	args := os.Args[2:]
+
+	rfatal := func(msg string) {
+		fatal("run", msg)
+	}
+
+	if len(args) != 0 {
+		rfatal(fmt.Sprintf("expected no args, got %q\n", strings.Join(args, " ")))
+	}
+
+	const PROMPT = ">> "
+
+	scanner := bufio.NewScanner(os.Stdin)
+
+	for {
+		fmt.Print(PROMPT)
+		scanned := scanner.Scan()
+		if !scanned {
+			return
+		}
+
+		line := scanner.Text()
+		l := lexer.NewFromString(line)
+		p := parser.New(l)
+
+		program := p.ParseProgram()
+
+		if p.HasErrors() {
+			fmt.Print(stringifyParseErrors(p))
+			continue
+		}
+
+		evaled := eval.Eval(program)
+		fmt.Print(evaled.Inspect(), "\n")
+	}
 }
 
 func fatal(cmd string, msg string) {
@@ -106,6 +143,12 @@ func fatal(cmd string, msg string) {
 	os.Exit(1)
 }
 
-func repl() {
-
+func stringifyParseErrors(parse *parser.Parser) string {
+	var out bytes.Buffer
+	out.WriteString("🙈 found parse errors\n\n")
+	for i, perr := range parse.Errors() {
+		loc := perr.Location
+		out.WriteString(fmt.Sprintf("[%d] In %s (line %d, col %d): %s\n", i+1, loc.Path, loc.LineN, loc.CharN, perr.Message))
+	}
+	return out.String()
 }
